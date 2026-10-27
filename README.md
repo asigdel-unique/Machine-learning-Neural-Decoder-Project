@@ -1,6 +1,6 @@
 # Neural Decoder for Brain-Computer Interfaces
 
-Predicting 2D hand movement velocity from motor cortex neural recordings using machine learning. This project evaluates model robustness and assesses practical viability for brain-computer interface (BCI) applications.
+Predicting 2D hand movement velocity from motor cortex neural recordings using machine learning. Compares feedforward, LSTM, and GRU architectures with improved preprocessing, achieving R² = 0.72 with the GRU decoder. Evaluates model robustness and practical viability for brain-computer interface (BCI) applications.
 
 ## Dataset
 
@@ -35,16 +35,28 @@ python exploratory_analysis.py     # Visualize neural and behavioral data
 python preprocessing.py            # Bin spikes, extract features, train/test split
 python baseline_model.py           # Train Ridge regression decoder
 python train_neural_network.py     # Train neural network decoder
+python improved_preprocessing.py   # Enhanced preprocessing (smoothing + 300ms history)
+python improved_model.py           # Train improved FF, LSTM, and GRU decoders
 python drift_analysis.py           # Simulate signal drift and recalibration
-python reliability_analysis.py     # Cross-temporal, speed, direction, dropout tests
+python reliability_analysis.py     # Robustness and reliability testing
 python run_demo.py                 # Run offline decoding demo
 python generate_figures.py         # Generate final comparison figures
+python generate_video.py           # Generate animated recording visualization
 ```
 
 ## Data Processing
 
+### Original Pipeline
 - Spike times binned into 20 ms windows
 - 6 bins of history (120 ms context) concatenated per sample
+- Z-scored features using training statistics
+
+### Improved Pipeline
+- Exponential smoothing (τ = 50 ms, α = 0.33) applied to spike counts before binning
+- 15 bins of history (300 ms context) — captures the full motor cortex planning window
+- 3D sequence inputs (samples × 15 × 98) for recurrent models, flattened for feedforward
+
+### Common
 - 98 observed units (32 held out by the NLB benchmark)
 - Target: 2D finger velocity (X, Y)
 - Train/test split: 80/20 by time (no shuffling)
@@ -52,22 +64,34 @@ python generate_figures.py         # Generate final comparison figures
 
 ## Results
 
-| Model | MAE | RMSE | R² (Vel X) | R² (Vel Y) |
-|-------|-----|------|------------|------------|
-| Baseline (mean) | 36.84 | 72.10 | — | — |
-| Ridge Regression | 37.15 | 56.71 | 0.389 | 0.368 |
-| Neural Network | 29.52 | 50.56 | 0.507 | 0.510 |
+| Model | Preprocessing | MAE (mm/s) | RMSE (mm/s) | R² (Vel X) | R² (Vel Y) | R² Avg |
+|-------|--------------|-----|------|------------|------------|--------|
+| Baseline (mean) | — | 36.84 | 72.10 | — | — | — |
+| Ridge Regression | Original | 37.15 | 56.71 | 0.389 | 0.368 | 0.379 |
+| Feedforward NN | Original | 29.52 | 50.56 | 0.507 | 0.510 | 0.509 |
+| Feedforward NN | Improved | 22.50 | 40.40 | 0.672 | 0.709 | 0.691 |
+| LSTM | Improved | 22.54 | 40.38 | 0.675 | 0.706 | 0.690 |
+| **GRU** | **Improved** | **21.27** | **38.45** | **0.696** | **0.749** | **0.722** |
 
-The neural network (3-layer feedforward, 256→128→2, ReLU, dropout 0.3) outperforms Ridge regression on all metrics.
+### Model Architectures
+
+- **Feedforward NN (original)**: 588 → 256 → 128 → 2, ReLU, dropout 0.3
+- **Feedforward NN (improved)**: 1470 → 512 → 256 → 128 → 2, ReLU, dropout 0.3, batch norm
+- **LSTM**: 2-layer LSTM (hidden=256) → 128 → 2, dropout 0.3
+- **GRU**: 2-layer GRU (hidden=256) → 128 → 2, dropout 0.3
+
+All improved models use: CosineAnnealingLR scheduler, gradient clipping (max norm 1.0), early stopping (patience 25), Adam optimizer (lr=1e-3).
 
 ### Key Findings
 
-- Neural network decoder explains ~51% of velocity variance from neural activity
+- **GRU decoder achieves R² = 0.722**, explaining ~72% of velocity variance from neural activity
+- **Preprocessing contributes more than architecture**: improved preprocessing alone boosted R² from 0.509 to 0.691 (+36%), while the GRU architecture added 0.691 to 0.722 (+4.5%)
+- Exponential smoothing and longer history window (300 ms vs 120 ms) were the two most impactful changes
+- LSTM and improved feedforward performed nearly identically (R² ≈ 0.690), suggesting the temporal structure in the data is modest
 - Inference time per window: 0.064 ms (300x faster than the 20 ms real-time requirement)
 - Robust to 20% channel dropout and moderate noise
 - Gain drift >50% requires recalibration; retraining the output layer on 60s of labeled data recovers most performance
 - Fast movements (>150 mm/s) show the highest prediction error
-- Consistent performance across time within session (R² 0.51–0.71 across 5 folds)
 
 ### Limitations
 
@@ -84,19 +108,19 @@ The neural network (3-layer feedforward, 256→128→2, ReLU, dropout 0.3) outpe
 ├── check_environment.py        # Environment verification
 ├── data_loader.py              # Data loading from DANDI/NWB
 ├── exploratory_analysis.py     # EDA and visualization
-├── preprocessing.py            # Feature engineering pipeline
+├── preprocessing.py            # Feature engineering pipeline (original)
+├── improved_preprocessing.py   # Enhanced pipeline (smoothing + 300ms history)
 ├── baseline_model.py           # Ridge regression decoder
-├── train_neural_network.py     # Neural network training and evaluation
+├── train_neural_network.py     # Original feedforward neural network
+├── improved_model.py           # Improved FF, LSTM, and GRU decoders
 ├── drift_analysis.py           # Signal drift simulation
 ├── reliability_analysis.py     # Robustness and reliability testing
 ├── run_demo.py                 # Offline decoding demo
 ├── generate_figures.py         # Final comparison figures
-├── demo_live.py                # Live visualization demo
-├── demo_visual.py              # Visual demo
-├── technical_report.md         # Detailed technical report
+├── generate_video.py           # Animated recording visualization
 ├── processed_data/             # Preprocessed arrays
 ├── results/                    # Trained models and metrics
-└── figures/                    # Generated plots
+└── figures/                    # Generated plots and animations
 ```
 
 ## Citation
