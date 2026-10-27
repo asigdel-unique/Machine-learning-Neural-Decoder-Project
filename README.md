@@ -1,5 +1,5 @@
 # Neural Decoder for Brain-Computer Interfaces
-
+![Neural Recording Animation](figures/neural_recording_10s.gif)
 Predicting 2D hand movement velocity from motor cortex neural recordings using machine learning. Compares feedforward, LSTM, and GRU architectures with improved preprocessing, achieving R2 = 0.72 with the GRU decoder. Evaluates model robustness and practical viability for brain-computer interface (BCI) applications.
 
 ## Dataset
