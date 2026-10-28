@@ -187,15 +187,29 @@ R2 = 0.730  V2 GRU
 R2 = 0.746  Final Ensemble
 ```
 
+### Cross-Session Generalization
+
+To test robustness to neural drift (the main obstacle for real BCIs), we split the full recording into two halves (Session A = early, Session B = late) and trained/tested across them:
+
+| Condition | Ridge R2 | GRU R2 |
+|-----------|----------|--------|
+| Same-session (A -> A, 80/20 split) | — | 0.666 |
+| Cross-session (A -> B, forward) | 0.473 | 0.664 |
+| Cross-session (B -> A, backward) | 0.441 | 0.654 |
+| Cross-session average | 0.457 | 0.659 |
+
+**R2 drop from same-session to cross-session: only 1.1%** — the GRU generalizes well across time, suggesting the learned neural representations are stable within this recording. Ridge regression drops much more (same-session Ridge R2 ~ 0.48 vs 0.46 cross-session), confirming that the nonlinear model captures more robust neural features.
+
 ### Limitations
 
-1. Trained and tested on a single session from one subject
+1. Single subject (macaque "Indy"), single recording session
 2. Offline evaluation only - not a real-time closed-loop BCI
-3. Predictions underestimate fast movement amplitudes
+3. Predictions underestimate fast movement amplitudes (>150 mm/s)
 4. Prediction lag of ~20-40 ms behind actual movement onset
 5. Performance degrades with >30% channel dropout
-6. Assumes stationary neural tuning within the session
+6. Gain drift >50% requires recalibration
 7. Ensemble weights optimized on test data (first 30%), which slightly overestimates generalization
+8. Cross-session test simulates drift within one recording, not across separate sessions/days
 
 ## Project Structure
 
@@ -219,6 +233,7 @@ v2_train.py                 # V2 GRU and Attention-GRU training
 ensemble_model.py           # Smoothed weighted ensemble
 
 # Analysis
+cross_session_test.py       # Cross-session generalization test
 drift_analysis.py           # Signal drift simulation
 reliability_analysis.py     # Robustness and reliability testing
 run_demo.py                 # Offline decoding demo
